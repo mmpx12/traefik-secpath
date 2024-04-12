@@ -1,0 +1,27 @@
+displayName: Traefik sec path
+type: middleware
+
+import: github.com/mmpx12/traefik-secpath
+
+summary: 'White list or black list path based on ip'
+
+testData:
+  rules:
+    redir:
+      pathRule: "^/re/|/redir/"
+      ipRule: "172.17.0.1/10,192.168.75.207"
+      typeRule: redirection
+      newPath: "/redirect/"
+    admin:
+      pathRule: "^/admin/|^/me/"
+      ipRule: "172.17.0.1/10,192.168.75.207"
+      typeRule: fake
+      newPath: "/fake/"
+    superadmin:
+      pathRule: "/super-admin/"
+      ipRule: "172.20.0.1/24"
+      typeRule: allow
+    megaadmin:
+      pathRule: "/mega-admin/"
+      ipRule: "172.20.0.1-172.20.0.255"
+      typeRule: block

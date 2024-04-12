@@ -1,0 +1,57 @@
+version: '3.3'
+
+networks:
+  web:
+    external: true
+
+services:
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    networks:
+      - web
+      - default
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.docker
+      - --api
+      - --experimental.localPlugins.secpath.modulename=github.com/mmpx12/traefik-secpath
+    ports:
+      - '80:80'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./plugins-local:/plugins-local/
+    labels:
+      - traefik.http.routers.traefik.rule=Host(`traefik.local.me`)
+      - traefik.http.routers.traefik.service=api@internal
+
+  nginx:
+    image: nginx
+    container_name: nginx
+    volumes:
+      - ./demo/html:/usr/share/nginx/html
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nginx.rule=Host(`nginx.local.me`)
+      - traefik.http.routers.nginx.entrypoints=web
+      - traefik.http.services.nginx.loadbalancer.server.port=80
+      # redirect
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.redir.pathRule=^/re/|/redir/
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.redir.ipRule=172.17.0.1/10,192.168.75.1
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.redir.typeRule=redirection
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.redir.newPath=/redirect/
+      # allow
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.superadmin.pathRule=/super-admin/
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.superadmin.ipRule=172.20.0.1/24
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.superadmin.typeRule=allow
+      # block
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.megaadmin.pathRule=/mega-admin/
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.megaadmin.ipRule=172.20.0.1-172.20.0.255
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.megaadmin.typeRule=block
+      # fake
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.admin.pathRule=^/admin/|^/me/
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.admin.ipRule=172.17.0.1/10,192.168.75.0/24
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.admin.typeRule=fake
+      - traefik.http.middlewares.secpath-plugin.plugin.secpath.rules.admin.newPath=/fake/
+      - traefik.http.routers.nginx.middlewares=secpath-plugin
+
